@@ -5,6 +5,10 @@ from flask_cors import CORS
 from werkzeug.exceptions import BadRequest, NotFound
 import pymysql
 
+# Non-serializable data types
+from decimal import Decimal
+from datetime import datetime, date
+
 # Your database credentials file
 from dbcreds import db_credentials as dbc
 
@@ -47,6 +51,22 @@ def disconnect(conn):
         print("Could not properly disconnect from MySQL database.")
         raise Exception("Failure disconnecting from MySQL database")
 
+# Make JSON serializable
+# Decimals / Date / Datetime
+def makeSerializable(response):
+    try:
+        for row in response:
+            for key in row:
+                if type(row[key]) is Decimal:
+                    row[key] = float(row[key])
+                elif type(row[key]) is date:
+                    row[key] = row[key].strftime("%Y-%m-%d")
+                elif type(row[key]) is datetime:
+                    row[key] = row[key].strftime("%Y-%m-%d %H:%M:%S")
+        return response
+    except:
+        raise Exception("Cannot make JSON serializable")
+
 # Execute an SQL command
 # Set cmd parameter to 'get' or 'post'
 # Set conn parameter to connection object
@@ -55,44 +75,49 @@ def execute(sql, cmd, conn):
     try:
         with conn.cursor() as cur:
             cur.execute(sql)
-            if cmd is 'get':
+            if cmd is 'read':
                 result = cur.fetchall()
                 response['message'] = 'Successfully executed SQL query.'
-                response['result'] = result
+                response['result'] = makeSerializable(result)
                 response['code'] = 280
-            elif cmd in 'post':
+            elif cmd in 'write':
                 conn.commit()
                 response['message'] = 'Successfully committed SQL command.'
                 response['code'] = 281
             else:
                 response['message'] = 'Request failed. Unknown or ambiguous instruction given for MySQL command.'
-                response['code'] = 490
+                response['code'] = 480
     except:
         response['message'] = 'Request failed, could not execute MySQL command.'
-        response['code'] = 491
+        response['code'] = 490
     finally:
-        print(response['message'])
+        print(response['message'] , '-', response['code'])
         return response
 
 # REST API for Flask / MySQL stack
 # Connect to database, communicate with it, and return a response
 # Raise an exception if things go wrong
 # Disconnect from database when the process is complete
-class FlaskMySQL(Resource):
-    # HTTP method GET
+class Inventory(Resource):
+    # Use GET to fetch data
     def get(self):
         try:
             response = {}
             conn = connect()
-            sql = """   SELECT
-                            \'SampleValue\'
-                        AS SampleColumn;"""
+            sql = """
+                SELECT
+                    item_uid
+                    , item_name
+                    , quantity
+                FROM
+                    Inventory
+                ;"""
 
-            sql_response = execute(sql, 'get', conn)
+            sql_response = execute(sql, 'read', conn)
 
             if sql_response['code'] == 280:
                 response['message'] = 'Request successful.'
-                response['result'] = items
+                response['result'] = sql_response['result']
                 response['code'] = sql_response['code']
                 return response, 200
             else:
@@ -105,31 +130,110 @@ class FlaskMySQL(Resource):
         finally:
             disconnect(conn)
 
-    # HTTP method POST
+    # Use POST to add new data
     def post(self):
         try:
             data = request.get_json(force=True)
 
-            if data.get('Value1') == None:
-                raise BadRequest('Request failed, please provide Value1.')
-            if data.get('Value2') == None:
-                raise BadRequest('Request failed, please provide Value2.')
+            response = {}
+            conn = connect()
+
+            if data.get('item_name') == None:
+                response['message'] = 'Request failed, please provide item_name.'
+                return response, 400
+            if data.get('quantity') == None:
+                response['message'] = 'Request failed, please provide quantity.'
+                return response, 400
+
+            sql = """
+                INSERT INTO Inventory
+                (
+                    item_name
+                    , quantity
+                )
+                VALUES
+                (
+                    \'""" + data['item_name'] + """\'
+                    , """ + str(data['quantity']) + """
+                )
+                ;"""
+
+            sql_response = execute(sql, 'write', conn)
+
+            if sql_response['code'] == 281:
+                response['message'] = 'Request successful.'
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 200
+            else:
+                response['message'] = sql_response['message']
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 400
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    # Use PATCH to update existing data
+    def patch(self):
+        try:
+            data = request.get_json(force=True)
 
             response = {}
             conn = connect()
 
-            sql = """   INSERT INTO SampleTable
-                        (
-                            SampleColumn1,
-                            SampleColumn2
-                        )
-                        VALUES
-                        (
-                            \'""" + data['Value1'] + """\',
-                            \'""" + data['Value2'] + """\'
-                        );"""
+            if data.get('item_name') == None:
+                response['message'] = 'Request failed, please provide item_name.'
+                return response, 400
+            if data.get('quantity') == None:
+                response['message'] = 'Request failed, please provide quantity.'
+                return response, 400
 
-            sql_response = execute(sql, 'post', conn)
+            sql = """
+                UPDATE Inventory
+                SET
+                    quantity = """ + str(data['quantity']) + """
+                WHERE
+                    item_name = \'""" + data['item_name'] + """\'
+                ;"""
+
+            sql_response = execute(sql, 'write', conn)
+
+            if sql_response['code'] == 281:
+                response['message'] = 'Request successful.'
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 200
+            else:
+                response['message'] = sql_response['message']
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 400
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    # Use DELETE to delete existing data
+    def delete(self):
+        try:
+            data = request.get_json(force=True)
+
+            response = {}
+            conn = connect()
+
+            if data.get('item_name') == None:
+                response['message'] = 'Request failed, please provide item_name.'
+                return response, 400
+
+            sql = """
+                DELETE FROM Inventory
+                WHERE
+                    item_name = \'""" + data['item_name'] + """\'
+                ;"""
+
+            sql_response = execute(sql, 'write', conn)
 
             if sql_response['code'] == 281:
                 response['message'] = 'Request successful.'
@@ -147,7 +251,7 @@ class FlaskMySQL(Resource):
             disconnect(conn)
 
 # Define routes for each API
-api.add_resource(FlaskMySQL, '/api/v1/flaskmysql')
+api.add_resource(Inventory, '/api/v1/inventory')
 
 # Run the app
 if __name__ == '__main__':

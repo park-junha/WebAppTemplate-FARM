@@ -1,10 +1,13 @@
+# ======================================= #
+# MAKE SURE THIS FILE DOES NOT GET PUSHED #
+# ======================================= #
+
 # Set the following fields to your database's credentials
-# Make sure this file is in your ignore file
 db_credentials = {
-    'host': 'locahost',
+    'host': 'localhost',
     'port': 3306,
     'user': 'root',
-    'schema': None,
+    'schema': 'SampleInventory',
     'charset': 'utf8mb4',
     'password': None
 }
