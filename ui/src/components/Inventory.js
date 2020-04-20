@@ -12,6 +12,11 @@ export default class Inventory extends Component {
 
   //  Get API data as soon as app loads
   async componentDidMount() {
+    this.loadApi();
+  }
+
+  //  Load API data
+  async loadApi () {
     const api = await this.props.fetchInventory(this.props.API_URL);
     this.setState({
       inventory: api.result
@@ -21,22 +26,44 @@ export default class Inventory extends Component {
   render() {
     return (
       <div>
+        {/* Reload inventory from API */}
+        <div>
+          <input
+            type='button'
+            value='Refresh'
+            onClick={() => {
+              this.setState({
+                inventory: {}
+              });
+              this.loadApi();
+            }}
+          />
+        <span>
+          {this.props.item_added ? 'Item added to database. Please refresh.' : ''}
+        </span>
+        </div>
         {/* Iterate through keys of inventory API data */}
         {/* Managing updated state is easier with objects */}
         {Object.keys(this.state.inventory).map(uid => (
           <Item
             {...this.state.inventory[uid]}
-            sendUpdate={() => {
+            sendUpdate={async () => {
               const data = {
                 ...this.state.inventory[uid]
               };
-              this.props.sendForm(this.props.API_URL, 'PATCH', data);
+              const res = await this.props.sendForm(this.props.API_URL, 'PATCH', data);
+              if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
+                return 'item-state-saved';
+              }
             }}
-            sendDelete={() => {
+            sendDelete={async () => {
               const data = {
                 ...this.state.inventory[uid]
               };
-              this.props.sendForm(this.props.API_URL, 'DELETE', data);
+              const res = await this.props.sendForm(this.props.API_URL, 'DELETE', data);
+              if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
+                return 'item-state-deleted';
+              }
             }}
             incrementItem={() => {
               var stateCopy = Object.assign({}, this.state);
