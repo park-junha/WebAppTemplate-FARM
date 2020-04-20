@@ -1,2 +1,18 @@
-.App {
+.App {}
+
+.item-no-state {
+  color: #000;
 }
+
+.item-state-saved {
+  color: #4a8560;
+}
+
+.item-state-edited {
+  color: #ccac00;
+}
+
+.item-state-deleted {
+  color: #b81414;
+}
+

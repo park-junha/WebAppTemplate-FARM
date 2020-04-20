@@ -7,14 +7,10 @@ const API_URLS = {
   INVENTORY: DEV_URL + '/inventory'
 };
 const API_CODES = {
-  SUCCESS: [
-    280
-    , 281
-  ]
-  , ERROR: [
-    480
-    , 490
-  ]
+  SUCCESS: {
+    READ: 280,
+    WRITE: 281
+  }
 };
 
 class App extends Component {
@@ -25,6 +21,7 @@ class App extends Component {
         item_name: ''
         , quantity: 0
       }
+      , item_added: false
     };
     this.handleChange = this.handleChange.bind(this);
     this.fetchApi = this.fetchApi.bind(this);
@@ -48,6 +45,10 @@ class App extends Component {
   async fetchApi(API_URL) {
     const res = await fetch(API_URL);
     const api = await res.json();
+    this.setState(prevState => ({
+      ...prevState
+      , item_added: false
+    }));
     return api;
   };
 
@@ -63,6 +64,8 @@ class App extends Component {
     });
 
     const response = await res.json();
+
+    return response;
   };
 
   render() {
@@ -78,11 +81,20 @@ class App extends Component {
             />
             <input
               type='button'
-              onClick={() => {
+              onClick={async () => {
                 const data = {
                   ...this.state.new_item
                 };
-                this.sendForm(API_URLS.INVENTORY, 'POST', data);
+                const res = await this.sendForm(API_URLS.INVENTORY, 'POST', data);
+                if (res.code === API_CODES.SUCCESS.WRITE) {
+                  this.setState(prevState => ({
+                    new_item: {
+                      item_name: ''
+                      , quantity: 0
+                    }
+                    , item_added: true
+                  }));
+                }
               }}
               value='Create'
             />
@@ -91,6 +103,8 @@ class App extends Component {
         <br />
         <Inventory
           API_URL={API_URLS.INVENTORY}
+          API_CODES={API_CODES}
+          item_added={this.state.item_added}
           fetchInventory={this.fetchApi}
           sendForm={this.sendForm}
         />

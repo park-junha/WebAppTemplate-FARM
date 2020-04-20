@@ -91,7 +91,7 @@ def execute(sql, cmd, conn):
         response['message'] = 'Request failed, could not execute MySQL command.'
         response['code'] = 490
     finally:
-        print(response['message'] , '-', response['code'])
+        print(response['message'], response['code'])
         return response
 
 # REST API for Flask / MySQL stack
