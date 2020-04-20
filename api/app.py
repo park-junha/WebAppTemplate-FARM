@@ -113,11 +113,19 @@ class Inventory(Resource):
                     Inventory
                 ;"""
 
+            # Returns list of JSONs
+            # Each JSON represents a single row
             sql_response = execute(sql, 'read', conn)
+
+            # Rearrange response to JSON with key by uid
+            # This makes state management on UI easier
+            items = {}
+            for row in sql_response['result']:
+                items[row['item_uid']] = row
 
             if sql_response['code'] == 280:
                 response['message'] = 'Request successful.'
-                response['result'] = sql_response['result']
+                response['result'] = items
                 response['code'] = sql_response['code']
                 return response, 200
             else:
@@ -183,6 +191,9 @@ class Inventory(Resource):
             response = {}
             conn = connect()
 
+            if data.get('item_uid') == None:
+                response['message'] = 'Request failed, please provide item_uid.'
+                return response, 400
             if data.get('item_name') == None:
                 response['message'] = 'Request failed, please provide item_name.'
                 return response, 400
@@ -193,9 +204,10 @@ class Inventory(Resource):
             sql = """
                 UPDATE Inventory
                 SET
-                    quantity = """ + str(data['quantity']) + """
-                WHERE
                     item_name = \'""" + data['item_name'] + """\'
+                    , quantity = """ + str(data['quantity']) + """
+                WHERE
+                    item_uid = \'""" + str(data['item_uid']) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
@@ -223,14 +235,14 @@ class Inventory(Resource):
             response = {}
             conn = connect()
 
-            if data.get('item_name') == None:
-                response['message'] = 'Request failed, please provide item_name.'
+            if data.get('item_uid') == None:
+                response['message'] = 'Request failed, please provide item_uid.'
                 return response, 400
 
             sql = """
                 DELETE FROM Inventory
                 WHERE
-                    item_name = \'""" + data['item_name'] + """\'
+                    item_uid = \'""" + str(data['item_uid']) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
