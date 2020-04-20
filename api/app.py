@@ -183,6 +183,9 @@ class Inventory(Resource):
             response = {}
             conn = connect()
 
+            if data.get('item_uid') == None:
+                response['message'] = 'Request failed, please provide item_uid.'
+                return response, 400
             if data.get('item_name') == None:
                 response['message'] = 'Request failed, please provide item_name.'
                 return response, 400
@@ -193,9 +196,10 @@ class Inventory(Resource):
             sql = """
                 UPDATE Inventory
                 SET
-                    quantity = """ + str(data['quantity']) + """
+                    item_name = """ + str(data['item_name']) + """
+                    , quantity = """ + str(data['quantity']) + """
                 WHERE
-                    item_name = \'""" + data['item_name'] + """\'
+                    item_uid = \'""" + data['item_uid'] + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
@@ -223,14 +227,14 @@ class Inventory(Resource):
             response = {}
             conn = connect()
 
-            if data.get('item_name') == None:
-                response['message'] = 'Request failed, please provide item_name.'
+            if data.get('item_uid') == None:
+                response['message'] = 'Request failed, please provide item_uid.'
                 return response, 400
 
             sql = """
                 DELETE FROM Inventory
                 WHERE
-                    item_name = \'""" + data['item_name'] + """\'
+                    item_uid = \'""" + data['item_uid'] + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
