@@ -20,8 +20,27 @@ const API_CODES = {
 class App extends Component {
   constructor(props) {
     super(props);
+    this.state = {
+      new_item: {
+        item_name: ''
+        , quantity: 0
+      }
+    };
+    this.handleChange = this.handleChange.bind(this);
     this.fetchApi = this.fetchApi.bind(this);
     this.sendForm = this.sendForm.bind(this);
+  }
+
+  //  Handle text input state change
+  //  Preserve previous state to preserve all keys of state
+  handleChange(event) {
+    const target = event.target;
+    this.setState(prevState => ({
+      new_item: {
+        ...prevState.new_item
+        , item_name: target.value
+      }
+    }));
   }
 
   //  fetch() sends GET request to API
@@ -49,6 +68,27 @@ class App extends Component {
   render() {
     return (
       <div className="App">
+        <div>
+          <span>
+            <b>New Item: </b>
+            <input
+              type='text'
+              value={this.state.new_item.item_name}
+              onChange={this.handleChange}
+            />
+            <input
+              type='button'
+              onClick={() => {
+                const data = {
+                  ...this.state.new_item
+                };
+                this.sendForm(API_URLS.INVENTORY, 'POST', data);
+              }}
+              value='Create'
+            />
+          </span>
+        </div>
+        <br />
         <Inventory
           API_URL={API_URLS.INVENTORY}
           fetchInventory={this.fetchApi}
