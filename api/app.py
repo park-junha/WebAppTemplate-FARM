@@ -113,11 +113,19 @@ class Inventory(Resource):
                     Inventory
                 ;"""
 
+            # Returns list of JSONs
+            # Each JSON represents a single row
             sql_response = execute(sql, 'read', conn)
+
+            # Rearrange response to JSON with key by uid
+            # This makes state management on UI easier
+            items = {}
+            for row in sql_response['result']:
+                items[row['item_uid']] = row
 
             if sql_response['code'] == 280:
                 response['message'] = 'Request successful.'
-                response['result'] = sql_response['result']
+                response['result'] = items
                 response['code'] = sql_response['code']
                 return response, 200
             else:
@@ -196,10 +204,10 @@ class Inventory(Resource):
             sql = """
                 UPDATE Inventory
                 SET
-                    item_name = """ + str(data['item_name']) + """
+                    item_name = \'""" + data['item_name'] + """\'
                     , quantity = """ + str(data['quantity']) + """
                 WHERE
-                    item_uid = \'""" + data['item_uid'] + """\'
+                    item_uid = \'""" + str(data['item_uid']) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
@@ -234,7 +242,7 @@ class Inventory(Resource):
             sql = """
                 DELETE FROM Inventory
                 WHERE
-                    item_uid = \'""" + data['item_uid'] + """\'
+                    item_uid = \'""" + str(data['item_uid']) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)

@@ -6,19 +6,22 @@ const DEV_URL = 'http://localhost:8080/api/v1';
 const API_URLS = {
   INVENTORY: DEV_URL + '/inventory'
 };
+const API_CODES = {
+  SUCCESS: [
+    280
+    , 281
+  ]
+  , ERROR: [
+    480
+    , 490
+  ]
+};
 
 class App extends Component {
-  //  Initialize state
   constructor(props) {
     super(props);
-    this.state = {
-      Inventory: []
-    };
-  }
-
-  //  Get API data as soon as app loads
-  componentDidMount() {
-    this.fetchApi(API_URLS.INVENTORY);
+    this.fetchApi = this.fetchApi.bind(this);
+    this.sendForm = this.sendForm.bind(this);
   }
 
   //  fetch() sends GET request to API
@@ -26,16 +29,30 @@ class App extends Component {
   async fetchApi(API_URL) {
     const res = await fetch(API_URL);
     const api = await res.json();
-    this.setState({
-      Inventory: api.result
+    return api;
+  };
+
+  //  Send a form to API
+  async sendForm(API_URL, request_method, data) {
+    const res = await fetch(API_URL, {
+      method: request_method
+      , headers: {
+        'Accept': 'application/json'
+        , 'Content-Type': 'application/json'
+      }
+      , body: JSON.stringify(data)
     });
-  }
+
+    const response = await res.json();
+  };
 
   render() {
     return (
       <div className="App">
         <Inventory
-          inventory={this.state.Inventory}
+          API_URL={API_URLS.INVENTORY}
+          fetchInventory={this.fetchApi}
+          sendForm={this.sendForm}
         />
       </div>
     );
