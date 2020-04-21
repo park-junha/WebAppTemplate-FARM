@@ -17,7 +17,7 @@ export default class Inventory extends Component {
 
   //  Load API data
   async loadApi () {
-    const api = await this.props.fetchInventory(this.props.API_URL);
+    const api = await this.props.fetchInventory(this.props.API_URLS.ITEMS);
     this.setState({
       inventory: api.result
     });
@@ -51,7 +51,7 @@ export default class Inventory extends Component {
               const data = {
                 ...this.state.inventory[uid]
               };
-              const res = await this.props.sendForm(this.props.API_URL, 'PATCH', data);
+              const res = await this.props.sendForm(this.props.API_URLS.ITEM+ uid, 'PATCH', data);
               if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
                 return 'item-state-saved';
               }
@@ -60,7 +60,7 @@ export default class Inventory extends Component {
               const data = {
                 ...this.state.inventory[uid]
               };
-              const res = await this.props.sendForm(this.props.API_URL, 'DELETE', data);
+              const res = await this.props.sendForm(this.props.API_URLS.ITEM + uid, 'DELETE', data);
               if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
                 return 'item-state-deleted';
               }

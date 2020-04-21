@@ -24,6 +24,14 @@ app.config['DEBUG'] = True
 # Setup Flask app as REST API
 api = Api(app)
 
+# API internal status codes
+API_CODES = {
+    'SUCCESS_READ': 280
+    , 'SUCCESS_WRITE': 281
+    , 'ERROR_MYSQL_METHOD': 480
+    , 'ERROR_MYSQL_EXECUTE': 490
+}
+
 # Connect to MySQL database
 # Returns a connection object
 def connect():
@@ -79,26 +87,28 @@ def execute(sql, cmd, conn):
                 result = cur.fetchall()
                 response['message'] = 'Successfully executed SQL query.'
                 response['result'] = makeSerializable(result)
-                response['code'] = 280
+                response['code'] = API_CODES['SUCCESS_READ']
             elif cmd in 'write':
                 conn.commit()
                 response['message'] = 'Successfully committed SQL command.'
-                response['code'] = 281
+                response['code'] = API_CODES['SUCCESS_WRITE']
             else:
                 response['message'] = 'Request failed. Unknown or ambiguous instruction given for MySQL command.'
-                response['code'] = 480
+                response['code'] = API_CODES['ERROR_MYSQL_METHOD']
     except:
         response['message'] = 'Request failed, could not execute MySQL command.'
-        response['code'] = 490
+        response['code'] = API_CODES['ERROR_MYSQL_EXECUTE']
     finally:
         print(response['message'], response['code'])
         return response
 
-# REST API for Flask / MySQL stack
+# REST API Templates for Flask / MySQL stack
 # Connect to database, communicate with it, and return a response
 # Raise an exception if things go wrong
 # Disconnect from database when the process is complete
-class Inventory(Resource):
+
+# All resources API template
+class Items(Resource):
     # Use GET to fetch data
     def get(self):
         try:
@@ -123,7 +133,7 @@ class Inventory(Resource):
             for row in sql_response['result']:
                 items[row['item_uid']] = row
 
-            if sql_response['code'] == 280:
+            if sql_response['code'] == API_CODES['SUCCESS_READ']:
                 response['message'] = 'Request successful.'
                 response['result'] = items
                 response['code'] = sql_response['code']
@@ -168,7 +178,7 @@ class Inventory(Resource):
 
             sql_response = execute(sql, 'write', conn)
 
-            if sql_response['code'] == 281:
+            if sql_response['code'] == API_CODES['SUCCESS_WRITE']:
                 response['message'] = 'Request successful.'
                 response['result'] = data
                 response['code'] = sql_response['code']
@@ -183,17 +193,16 @@ class Inventory(Resource):
         finally:
             disconnect(conn)
 
+# Single item API template
+class Item(Resource):
     # Use PATCH to update existing data
-    def patch(self):
+    def patch(self, item_uid):
         try:
             data = request.get_json(force=True)
 
             response = {}
             conn = connect()
 
-            if data.get('item_uid') == None:
-                response['message'] = 'Request failed, please provide item_uid.'
-                return response, 400
             if data.get('item_name') == None:
                 response['message'] = 'Request failed, please provide item_name.'
                 return response, 400
@@ -207,12 +216,12 @@ class Inventory(Resource):
                     item_name = \'""" + data['item_name'] + """\'
                     , quantity = """ + str(data['quantity']) + """
                 WHERE
-                    item_uid = \'""" + str(data['item_uid']) + """\'
+                    item_uid = \'""" + str(item_uid) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
 
-            if sql_response['code'] == 281:
+            if sql_response['code'] == API_CODES['SUCCESS_WRITE']:
                 response['message'] = 'Request successful.'
                 response['result'] = data
                 response['code'] = sql_response['code']
@@ -228,26 +237,22 @@ class Inventory(Resource):
             disconnect(conn)
 
     # Use DELETE to delete existing data
-    def delete(self):
+    def delete(self, item_uid):
         try:
             data = request.get_json(force=True)
 
             response = {}
             conn = connect()
 
-            if data.get('item_uid') == None:
-                response['message'] = 'Request failed, please provide item_uid.'
-                return response, 400
-
             sql = """
                 DELETE FROM Inventory
                 WHERE
-                    item_uid = \'""" + str(data['item_uid']) + """\'
+                    item_uid = \'""" + str(item_uid) + """\'
                 ;"""
 
             sql_response = execute(sql, 'write', conn)
 
-            if sql_response['code'] == 281:
+            if sql_response['code'] == API_CODES['SUCCESS_WRITE']:
                 response['message'] = 'Request successful.'
                 response['result'] = data
                 response['code'] = sql_response['code']
@@ -263,7 +268,8 @@ class Inventory(Resource):
             disconnect(conn)
 
 # Define routes for each API
-api.add_resource(Inventory, '/api/v1/inventory')
+api.add_resource(Items, '/api/v1/items')
+api.add_resource(Item, '/api/v1/item/<string:item_uid>')
 
 # Run the app
 if __name__ == '__main__':
