@@ -29,6 +29,7 @@ API_CODES = {
     'SUCCESS_READ': 280
     , 'SUCCESS_WRITE': 281
     , 'ERROR_MYSQL_METHOD': 480
+    , 'ERROR_BAD_SQL_TYPE': 481
     , 'ERROR_MYSQL_EXECUTE': 490
 }
 
@@ -78,11 +79,21 @@ def makeSerializable(response):
 # Execute an SQL command
 # Set cmd parameter to 'get' or 'post'
 # Set conn parameter to connection object
-def execute(sql, cmd, conn):
+# Optional parameters for additional options
+def execute(sql, cmd, conn, options = None):
     response = {}
     try:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            # Execute one SQL command
+            if type(sql) == str:
+                cur.execute(sql)
+            # Execute multiple SQL commands without committing
+            elif type(sql) == list:
+                for eachSql in sql:
+                    cur.execute(eachSql)
+            else:
+                response['message'] = 'Request failed. Unknown or ambiguous parameter sql in execute().'
+                response['code'] = API_CODES['ERROR_BAD_SQL_TYPE']
             if cmd is 'read':
                 result = cur.fetchall()
                 response['message'] = 'Successfully executed SQL query.'
@@ -193,10 +204,50 @@ class Items(Resource):
         finally:
             disconnect(conn)
 
+    # Use PATCH to make a non-idempotent update
+    def patch(self):
+        try:
+            data = request.get_json(force=True)
+
+            response = {}
+            conn = connect()
+
+            sql = []
+            for uid_data in data:
+                if data.get(uid_data) == None:
+                    response['message'] = 'Request failed, insufficient data for item_uid: ' + str(uid_data) + '.'
+                    return response, 400
+
+                sql.append("""
+                    UPDATE Inventory
+                    SET
+                        item_name = \'""" + data[uid_data]['item_name'] + """\'
+                        , quantity = """ + str(data[uid_data]['quantity']) + """
+                    WHERE
+                        item_uid = \'""" + str(uid_data) + """\'
+                    ;""")
+
+            sql_response = execute(sql, 'write', conn)
+
+            if sql_response['code'] == API_CODES['SUCCESS_WRITE']:
+                response['message'] = 'Request successful.'
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 200
+            else:
+                response['message'] = sql_response['message']
+                response['result'] = data
+                response['code'] = sql_response['code']
+                return response, 400
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 # Single item API template
 class Item(Resource):
-    # Use PATCH to update existing data
-    def patch(self, item_uid):
+    # Use PUT to make an idempotent update
+    def put(self, item_uid):
         try:
             data = request.get_json(force=True)
 
