@@ -7,6 +7,7 @@ export default class Inventory extends Component {
     super(props);
     this.state = {
       inventory: {}
+      , items_updated: false
     };
   }
 
@@ -17,10 +18,24 @@ export default class Inventory extends Component {
 
   //  Load API data
   async loadApi () {
-    const api = await this.props.fetchInventory(this.props.API_URL);
+    const api = await this.props.fetchInventory(this.props.API_URLS.ITEMS);
     this.setState({
       inventory: api.result
+      , items_updated: false
     });
+  }
+
+  //  Update all items on frontend
+  async sendUpdateAll () {
+    const data = {
+      ...this.state.inventory
+    };
+    const res = await this.props.sendForm(this.props.API_URLS.ITEMS, 'PATCH', data);
+    if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
+      this.setState({
+        items_updated: true
+      });
+    }
   }
 
   render() {
@@ -30,7 +45,7 @@ export default class Inventory extends Component {
         <div>
           <input
             type='button'
-            value='Refresh'
+            value='Refresh All'
             onClick={() => {
               this.setState({
                 inventory: {}
@@ -38,9 +53,20 @@ export default class Inventory extends Component {
               this.loadApi();
             }}
           />
-        <span>
-          {this.props.item_added ? 'Item added to database. Please refresh.' : ''}
-        </span>
+          <span>
+            {this.props.item_added ? 'Item added to database. Please refresh. ' : ''}
+          </span>
+        </div>
+        {/* Update all values */}
+        <div>
+          <input
+            type='button'
+            value='Update All'
+            onClick={() => this.sendUpdateAll()}
+          />
+          <span>
+            {this.state.items_updated ? 'All items updated. ' : ''}
+          </span>
         </div>
         {/* Iterate through keys of inventory API data */}
         {/* Managing updated state is easier with objects */}
@@ -51,7 +77,7 @@ export default class Inventory extends Component {
               const data = {
                 ...this.state.inventory[uid]
               };
-              const res = await this.props.sendForm(this.props.API_URL, 'PATCH', data);
+              const res = await this.props.sendForm(this.props.API_URLS.ITEM + uid, 'PUT', data);
               if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
                 return 'item-state-saved';
               }
@@ -60,7 +86,7 @@ export default class Inventory extends Component {
               const data = {
                 ...this.state.inventory[uid]
               };
-              const res = await this.props.sendForm(this.props.API_URL, 'DELETE', data);
+              const res = await this.props.sendForm(this.props.API_URLS.ITEM + uid, 'DELETE', data);
               if (res.code === this.props.API_CODES.SUCCESS.WRITE) {
                 return 'item-state-deleted';
               }
@@ -68,12 +94,14 @@ export default class Inventory extends Component {
             incrementItem={() => {
               var stateCopy = Object.assign({}, this.state);
               stateCopy.inventory[uid].quantity += 1;
+              stateCopy.items_updated = false;
               this.setState(stateCopy);
             }}
             decrementItem={() => {
               if (this.state.inventory[uid].quantity > 0) {
                 var stateCopy = Object.assign({}, this.state);
                 stateCopy.inventory[uid].quantity -= 1;
+                stateCopy.items_updated = false;
                 this.setState(stateCopy);
               }
             }}

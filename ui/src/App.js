@@ -4,7 +4,8 @@ import './App.css';
 
 const DEV_URL = 'http://localhost:8080/api/v1';
 const API_URLS = {
-  INVENTORY: DEV_URL + '/inventory'
+  ITEMS: DEV_URL + '/items',
+  ITEM: DEV_URL + '/item/'
 };
 const API_CODES = {
   SUCCESS: {
@@ -85,7 +86,7 @@ class App extends Component {
                 const data = {
                   ...this.state.new_item
                 };
-                const res = await this.sendForm(API_URLS.INVENTORY, 'POST', data);
+                const res = await this.sendForm(API_URLS.ITEMS, 'POST', data);
                 if (res.code === API_CODES.SUCCESS.WRITE) {
                   this.setState(prevState => ({
                     new_item: {
@@ -102,7 +103,7 @@ class App extends Component {
         </div>
         <br />
         <Inventory
-          API_URL={API_URLS.INVENTORY}
+          API_URLS={API_URLS}
           API_CODES={API_CODES}
           item_added={this.state.item_added}
           fetchInventory={this.fetchApi}
