@@ -12,6 +12,9 @@ from datetime import datetime, date
 # Your database credentials file
 from dbcreds import db_credentials as dbc
 
+# API internal status codes
+from internal import API_CODES
+
 # Initialize Flask app
 app = Flask(__name__)
 
@@ -23,15 +26,6 @@ app.config['DEBUG'] = True
 
 # Setup Flask app as REST API
 api = Api(app)
-
-# API internal status codes
-API_CODES = {
-    'SUCCESS_READ': 280
-    , 'SUCCESS_WRITE': 281
-    , 'ERROR_MYSQL_METHOD': 480
-    , 'ERROR_BAD_SQL_TYPE': 481
-    , 'ERROR_MYSQL_EXECUTE': 490
-}
 
 # Connect to MySQL database
 # Returns a connection object
@@ -49,10 +43,13 @@ def connect():
         return conn
     except:
         print("Failed to establish a connection to MySQL database.")
-        raise Exception("Failure connecting to MySQL database")
+        return None
 
 # Disconnect from MySQL database
 def disconnect(conn):
+    if conn is None:
+        print("Skipping disconnect() method due to no database connection.")
+        return
     try:
         conn.close()
         print("Successfully disconnected from MySQL database.")
@@ -82,6 +79,11 @@ def makeSerializable(response):
 # Optional parameters for additional options
 def execute(sql, cmd, conn, options = None):
     response = {}
+    if conn is None:
+        response['message'] = 'Server error: Could not connect to database.'
+        response['code'] = API_CODES['ERROR_DB_CONN_FAIL']
+        response['result'] = []
+        return response
     try:
         with conn.cursor() as cur:
             # Execute one SQL command
@@ -102,16 +104,29 @@ def execute(sql, cmd, conn, options = None):
             elif cmd in 'write':
                 conn.commit()
                 response['message'] = 'Successfully committed SQL command.'
+                response['result'] = []
                 response['code'] = API_CODES['SUCCESS_WRITE']
             else:
                 response['message'] = 'Request failed. Unknown or ambiguous instruction given for MySQL command.'
-                response['code'] = API_CODES['ERROR_MYSQL_METHOD']
+                response['result'] = []
+                response['code'] = API_CODES['ERROR_EXECUTE_METHOD']
     except:
         response['message'] = 'Request failed, could not execute MySQL command.'
+        response['result'] = []
         response['code'] = API_CODES['ERROR_MYSQL_EXECUTE']
     finally:
         print(response['message'], response['code'])
         return response
+
+# Determine HTTP response code from execute() status code
+def httpCodeOf(code):
+    if code == API_CODES['ERROR_DB_CONN_FAIL']:
+        return 500
+    if code == API_CODES['ERROR_BAD_SQL_TYPE']:
+        return 500
+    if code == API_CODES['ERROR_EXECUTE_METHOD']:
+        return 501
+    return 400
 
 # REST API Templates for Flask / MySQL stack
 # Connect to database, communicate with it, and return a response
@@ -152,7 +167,7 @@ class Items(Resource):
             else:
                 response['message'] = sql_response['message']
                 response['code'] = sql_response['code']
-                return response, 400
+                return response, httpCodeOf(sql_response['code'])
 
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -198,7 +213,7 @@ class Items(Resource):
                 response['message'] = sql_response['message']
                 response['result'] = data
                 response['code'] = sql_response['code']
-                return response, 400
+                return response, httpCodeOf(sql_response['code'])
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -238,7 +253,7 @@ class Items(Resource):
                 response['message'] = sql_response['message']
                 response['result'] = data
                 response['code'] = sql_response['code']
-                return response, 400
+                return response, httpCodeOf(sql_response['code'])
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -281,7 +296,7 @@ class Item(Resource):
                 response['message'] = sql_response['message']
                 response['result'] = data
                 response['code'] = sql_response['code']
-                return response, 400
+                return response, httpCodeOf(sql_response['code'])
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -312,7 +327,7 @@ class Item(Resource):
                 response['message'] = sql_response['message']
                 response['result'] = data
                 response['code'] = sql_response['code']
-                return response, 400
+                return response, httpCodeOf(sql_response['code'])
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
